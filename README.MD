@@ -15,8 +15,7 @@ The **Linux Process Monitor** is a command-line interface (CLI) tool designed to
 - 📊 Display top 10 processes sorted by CPU, memory, or start time  
 - 🔍 Find a process using regular expressions (without spawning new processes)  
 - ❌ Kill a process with a confirmation prompt  
-- 🚀 Advanced interactive sorting menu  
-- 🖥 Cyberpunk-style futuristic UI  
+- 🚀 Advanced interactive sorting menu 
 
 ---
 
