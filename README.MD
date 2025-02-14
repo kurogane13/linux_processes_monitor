@@ -1,6 +1,6 @@
 # **🚀 Linux Process Monitor**
 
-### **Program developed by Gustavo Wydler Azuaga - 2025-02-13**
+### **Program developed by Gustavo Wydler Azuaga - 2025-02-14**
 
 ## **📌 Description**
 
