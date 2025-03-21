@@ -311,6 +311,194 @@ draw_progress_bar() {
     printf "[%s%s] %s%%" "$(printf '█%.0s' $(seq 1 $progress))" "$(printf '░%.0s' $(seq 1 $remaining))" "$1"
 }
 
+process_tracker() {
+	
+	# Colors
+	RED='\033[1;31m'
+	GREEN='\033[1;32m'
+	CYAN='\033[1;36m'
+	YELLOW='\033[1;33m'
+	NC='\033[0m' # No Color
+
+	# Function to display the menu
+	show_menu() {
+		clear
+		echo -e "${CYAN}╔════════════════════════════════════════════════════╗"
+		echo -e "║      🚀      Process and Connections Tracker 🚀    ║"
+		echo -e "╚════════════════════════════════════════════════════╝${NC}"
+		echo -e "\n${YELLOW}Choose an option below:${NC}\n"
+		echo -e "1) 📌 List a process tree"
+		echo -e "2) 🔍 Show active network connections for process"
+		echo -e "3) 🌐 Check  network connections via netstat"
+		echo -e "4) 🏭 Display child processes of process"
+		echo -e "5) 🚀 Run all tracking commands sequentially"
+		echo -e "6) ⏱️  Monitor all commands continuously (watch mode)"
+		echo -e "7) 🔄 Watch a specific command"
+		echo "----------------------------------------------------------------"
+		echo -e "8) ❌ BACK TO MAIN SEREORT MENU"
+		echo -e "\n${CYAN}────────────────────────────────────────────────────${NC}"
+		echo -n -e "${GREEN}Enter your choice: ${NC}"
+	}
+
+	# Functions for each tracking option
+	get_process_regex() {
+		echo
+		read -p "Provide the processregx (name, PID), to try tacking it: " process_regex
+		
+	}
+
+	# 🟢 1. Process tree of ENDS
+	track_pstree() {
+		get_process_regex
+		echo -e "\n${CYAN}🔍 Checking process tree of $process_regex...${NC}\n"
+		pstree -ap | grep $process_regex
+		echo -e "\n${GREEN}✅ Done.${NC}\n"
+		read -p "Press Enter to continue..."
+	}
+
+	# 🟢 2. Active connections for ENDS
+	track_lsof() {
+		get_process_regex
+		echo -e "\n${CYAN}🌐 Listing active network connections for $process_regex...${NC}\n"
+		sudo lsof -i -P -n | grep $process_regex
+		echo -e "\n${GREEN}✅ Done.${NC}\n"
+		read -p "Press Enter to continue..."
+	}
+
+	# 🟢 3. ENDS connections via netstat
+	track_netstat() {
+		get_process_regex
+		echo -e "\n${CYAN}📡 Checking network connections using netstat...${NC}\n"
+		sudo netstat -tpn | grep $process_regex
+		echo -e "\n${GREEN}✅ Done.${NC}\n"
+		read -p "Press Enter to continue..."
+	}
+
+	# 🟢 4. Child processes of ENDS
+	track_pgrep() {
+		get_process_regex
+		echo -e "\n${CYAN}🧩 Listing child processes of $process_regex...${NC}\n"
+
+		parent_pids=$(pgrep -x "$process_regex")
+
+		if [ -z "$parent_pids" ]; then
+			echo -e "${RED}❌ No process found with name: $process_regex${NC}"
+		else
+			for pid in $parent_pids; do
+				echo -e "\n🔹 Parent PID: $pid"
+
+				# Get direct child processes
+				child_pids=$(ps --ppid "$pid" -o pid=)
+				if [ -n "$child_pids" ]; then
+					echo "   ├── Direct Children:"
+					echo "$child_pids" | awk '{print "   │   ├── PID: "$1}'
+				else
+					echo "   ├── No direct child processes found."
+				fi
+
+				# Get lightweight processes (threads)
+				thread_pids=$(ps -eLf | awk -v p="$pid" '$4 == p {print $2}' | grep -v "^$pid$")
+				if [ -n "$thread_pids" ]; then
+					echo "   ├── Threads (LWPs):"
+					echo "$thread_pids" | awk '{print "   │   ├── LWP: "$1}'
+				fi
+			done
+		fi
+
+		echo -e "\n${GREEN}✅ Done.${NC}\n"
+		read -p "Press Enter to continue..."
+	}
+
+
+	# 🟢 5. Run all commands sequentially
+	track_all_sequential() {
+		get_process_regex
+		echo -e "\n${CYAN}🔍 Checking process tree of $process_regex...${NC}\n"
+		pstree -ap | grep --color=auto "$process_regex"
+		
+		echo -e "\n${GREEN}✅ Done.${NC}\n"
+		read -p "Press Enter to continue..."
+
+		echo -e "\n${CYAN}🌐 Listing active network connections for $process_regex...${NC}\n"
+		sudo lsof -i -P -n | grep --color=auto "$process_regex"
+
+		echo -e "\n${GREEN}✅ Done.${NC}\n"
+		read -p "Press Enter to continue..."
+
+		echo -e "\n${CYAN}📡 Checking network connections using netstat...${NC}\n"
+		sudo netstat -tpn | grep --color=auto "$process_regex"
+
+		echo -e "\n${GREEN}✅ Done.${NC}\n"
+		read -p "Press Enter to continue..."
+
+		echo -e "\n${CYAN}🧩 Listing child processes of $process_regex...${NC}\n"
+		parent_pid=$(pgrep -x "$process_regex" | head -n 1)
+		
+		if [[ -n "$parent_pid" ]]; then
+			pgrep -P "$parent_pid"
+		else
+			echo -e "${RED}⚠ No parent process found.${NC}"
+		fi
+
+		echo -e "\n${GREEN}✅ Done.${NC}\n"
+		read -p "Press Enter to continue..."
+	}
+
+
+	# 🟢 6. Watch all commands continuously
+		track_watch_all() {
+			get_process_regex
+			echo -e "\n${CYAN}⏱️  Watching all commands in real-time...${NC}\n"
+
+			watch -n 2 "
+				echo '\n🔍 Process Tree:'; pstree -ap | grep --color=auto '$process_regex';
+				echo '\n🌐 Open Network Connections:'; sudo lsof -i -P -n | grep --color=auto '$process_regex';
+				echo '\n📡 Netstat Connections:'; sudo netstat -tpn | grep --color=auto '$process_regex';
+				parent_pid=\$(pgrep -x '$process_regex' | head -n 1);
+				if [ -n \"\$parent_pid\" ]; then echo '\n🧩 Child Processes:'; pgrep -P \"\$parent_pid\"; fi
+			"
+		}
+
+
+	# 🟢 7. Watch a specific command
+	track_watch_specific() {
+		get_process_regex
+		echo -e "\n${CYAN}🔄 Choose a command to watch:${NC}\n"
+		echo -e "1) 📌 Process tree of process_regex"
+		echo -e "2) 🌐 Active network connections for process_regex"
+		echo -e "3) 📡 process_regex connections via netstat"
+		echo -e "4) 🧩 Child processes of process_regex\n"
+		echo -n -e "${GREEN}Enter your choice: ${NC}"
+		read watch_choice
+		case $watch_choice in
+			1) watch -n 2 "pstree -ap | grep '$process_regex'" ;;
+			2) watch -n 2 "sudo lsof -i -P -n | grep '$process_regex'" ;;
+			3) watch -n 2 "sudo netstat -tpn | grep '$process_regex'" ;;
+			4) watch -n 2 "pgrep -P \$(pgrep -x $process_regex)" ;;
+			*) echo -e "${RED}❌ Invalid choice! Returning to menu.${NC}" ;;
+		esac
+	}
+
+	# Main menu loop
+	while true; do
+		show_menu
+		read choice
+		case $choice in
+			1) track_pstree ;;
+			2) track_lsof ;;
+			3) track_netstat ;;
+			4) track_pgrep ;;
+			5) track_all_sequential ;;
+			6) track_watch_all ;;
+			7) track_watch_specific ;;
+			8) main_program;;
+			*) echo -e "${RED}❌ Invalid option! Try again.${NC}" ;;
+		esac
+	done
+	
+	
+}
+
 #banner
 show_banner() {
     clear
@@ -336,9 +524,11 @@ show_menu() {
     echo -e "5) Show Top 10 Processes by start time"
     echo -e "6) Find a process by regexp"
     echo -e "7) Kill a process"
-    echo -e "8) Advanced Interactive sorting menu"
+    echo -e "-----------------------------------------------------"
+    echo -e "8) ADVANCED SORTING INTERACTIVE MENU"
+    echo -e "9) PROCESS TRACKING MENU"
     echo
-    echo -e "9) Exit${RESET}"
+    echo -e "10) Exit${RESET}"
 }
 
 #gather process statistics
@@ -542,6 +732,9 @@ main_program() {
                 process_sorter
                 ;;
             9)
+				process_tracker
+				;;
+            10)
                 echo -e "${BOLD}${RED}🚀 Exiting...${RESET}"
                 exit 0
                 
